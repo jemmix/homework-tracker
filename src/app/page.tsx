@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
+import Navbar from "./_components/navbar";
 
 export default async function Home() {
   const session = await auth();
@@ -11,20 +12,7 @@ export default async function Home() {
 
   return (
     <HydrateClient>
-      <header className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white shadow">
-        <h1 className="text-2xl font-bold tracking-tight">Homework Tracker</h1>
-        <nav className="flex items-center gap-4">
-          {session ? (
-            <Link href="/api/auth/signout" className="hover:underline">
-              Logout
-            </Link>
-          ) : (
-            <Link href="/api/auth/signin" className="hover:underline">
-              Login
-            </Link>
-          )}
-        </nav>
-      </header>
+      <Navbar showLogout={!!session} />
       <main className="max-w-2xl mx-auto p-6">
         <h2 className="text-xl font-semibold mb-4">Your Books</h2>
         {session ? (
