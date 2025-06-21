@@ -18,10 +18,16 @@ export default function Navbar({ progress, bookTitle, showLogout }: { progress?:
           <span className="text-xs text-slate-200 mt-1 text-center">{progress}% complete</span>
         </div>
       )}
-      {showLogout && (
+      {showLogout ? (
         <div className="flex items-center justify-end mt-2 md:mt-0">
           <Link href="/api/auth/signout" className="hover:underline text-slate-200 text-sm px-3 py-1 rounded">
             Logout
+          </Link>
+        </div>
+      ) : (
+        <div className="flex items-center justify-end mt-2 md:mt-0">
+          <Link href="/api/auth/signin" className="hover:underline text-slate-200 text-sm px-3 py-1 rounded">
+            Login
           </Link>
         </div>
       )}
