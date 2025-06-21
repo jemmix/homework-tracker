@@ -10,26 +10,7 @@ import { type AdapterAccount } from "next-auth/adapters";
  */
 export const createTable = pgTableCreator((name) => `homework-tracker_${name}`);
 
-export const posts = createTable(
-  "post",
-  (d) => ({
-    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-    name: d.varchar({ length: 256 }),
-    createdById: d
-      .varchar({ length: 255 })
-      .notNull()
-      .references(() => users.id),
-    createdAt: d
-      .timestamp({ withTimezone: true })
-      .default(sql`CURRENT_TIMESTAMP`)
-      .notNull(),
-    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
-  }),
-  (t) => [
-    index("created_by_idx").on(t.createdById),
-    index("name_idx").on(t.name),
-  ],
-);
+// --- Homework Tracker Schema ---
 
 export const users = createTable("user", (d) => ({
   id: d
@@ -50,6 +31,75 @@ export const users = createTable("user", (d) => ({
 
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
+  books: many(books),
+}));
+
+export const books = createTable(
+  "book",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    title: d.varchar({ length: 255 }).notNull(),
+    userId: d.varchar({ length: 255 }).notNull().references(() => users.id),
+    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [index("book_user_id_idx").on(t.userId)]
+);
+
+export const booksRelations = relations(books, ({ one, many }) => ({
+  user: one(users, { fields: [books.userId], references: [users.id] }),
+  units: many(units),
+}));
+
+export const units = createTable(
+  "unit",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    bookId: d.integer().notNull().references(() => books.id),
+    title: d.varchar({ length: 255 }).notNull(),
+    number: d.integer().notNull(), // can start at any number
+    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [index("unit_book_id_idx").on(t.bookId)]
+);
+
+export const unitsRelations = relations(units, ({ one, many }) => ({
+  book: one(books, { fields: [units.bookId], references: [books.id] }),
+  tasks: many(tasks),
+}));
+
+export const tasks = createTable(
+  "task",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    unitId: d.integer().notNull().references(() => units.id),
+    number: d.integer().notNull(), // always starts at 1
+    completed: d.boolean().notNull().default(false),
+    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [index("task_unit_id_idx").on(t.unitId)]
+);
+
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
+  unit: one(units, { fields: [tasks.unitId], references: [units.id] }),
+  parts: many(taskParts),
+}));
+
+export const taskParts = createTable(
+  "task_part",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    taskId: d.integer().notNull().references(() => tasks.id),
+    letter: d.varchar({ length: 2 }).notNull(), // e.g. 'a', 'b', ...
+    completed: d.boolean().notNull().default(false),
+  }),
+  (t) => [index("task_part_task_id_idx").on(t.taskId)]
+);
+
+export const taskPartsRelations = relations(taskParts, ({ one }) => ({
+  task: one(tasks, { fields: [taskParts.taskId], references: [tasks.id] }),
 }));
 
 export const accounts = createTable(
