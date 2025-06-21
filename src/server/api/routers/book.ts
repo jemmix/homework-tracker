@@ -5,10 +5,10 @@ import { eq } from "drizzle-orm";
 
 export const bookRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
-    // Fetch all books for the user
+    // Fetch all books for the user, ordered by position (then createdAt as fallback)
     const booksList = await ctx.db.query.books.findMany({
       where: (book, { eq }) => eq(book.userId, ctx.session.user.id),
-      orderBy: (book, { desc }) => [desc(book.createdAt)],
+      orderBy: (book, { asc, desc }) => [asc(book.position), desc(book.createdAt)],
     });
     // Fetch all units for these books
     const bookIds = booksList.map((b) => b.id);
@@ -308,6 +308,25 @@ export const bookRouter = createTRPCRouter({
       for (const existing of existingUnits) {
         if (!inputUnitIds.includes(existing.id)) {
           await ctx.db.delete(units).where(eq(units.id, existing.id));
+        }
+      }
+      return true;
+    }),
+  reorder: protectedProcedure
+    .input(z.object({
+      ids: z.array(z.number()), // ordered array of book ids
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Only update books belonging to the user
+      const userBooks = await ctx.db.query.books.findMany({
+        where: (book, { eq }) => eq(book.userId, ctx.session.user.id),
+      });
+      const userBookIds = new Set(userBooks.map((b) => b.id));
+      let position = 0;
+      for (const id of input.ids) {
+        if (userBookIds.has(id)) {
+          await ctx.db.update(books).set({ position }).where(eq(books.id, id));
+          position++;
         }
       }
       return true;
