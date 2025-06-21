@@ -179,138 +179,160 @@ export default function BookProgressPage() {
           <div className="w-full flex justify-center pt-8">
             <div className="w-[800px]">
               <Accordion type="multiple" className="mb-8">
-                {book.units.map((unit) => (
-                  <AccordionItem value={unit.id.toString()} key={unit.id}>
-                    <AccordionTrigger>
-                      <div className="flex items-center min-w-0 w-full gap-2">
-                        <span className="font-semibold min-w-[110px]">Unit {unit.number}:</span>
-                        <span className="truncate flex-1">{unit.title}</span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <ul className="space-y-2">
-                        {unit.tasks.map((task) => {
-                          // For split tasks, checked if all parts are checked (optimistically)
-                          const taskChecked = task.parts.length > 0
-                            ? task.parts.every((p) => optimisticPartState[p.id] ?? p.completed)
-                            : optimisticTaskState[task.id] ?? task.completed;
-                          return (
-                            <li key={task.id} className="flex flex-col gap-1">
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  id={`task-${task.id}`}
-                                  checked={taskChecked}
-                                  onCheckedChange={() => handleToggleTask(task)}
-                                  disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
-                                />
-                                <label htmlFor={`task-${task.id}`} className="cursor-pointer select-none flex items-center mx-1" onClick={() => handleToggleTask(task)}>
-                                  {task.number}
-                                </label>
-                                {task.parts.length > 0 && (
-                                  <span className="text-xs text-gray-500">(split)</span>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleSplitTask(task.id)}
-                                  disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
-                                >
-                                  Split
-                                  {splittingTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="text-red-500"
-                                  title="Remove Task"
-                                  onClick={() => handleRemoveTask(task.id)}
-                                  disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
-                                >
-                                  🗑️
-                                  {removingTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                                </Button>
-                                {task.parts.length > 0 && (
+                {book.units.map((unit) => {
+                  // Calculate unit progress
+                  let unitTotal = 0, unitCompleted = 0;
+                  unit.tasks.forEach((task) => {
+                    if (task.parts.length > 0) {
+                      unitTotal += task.parts.length;
+                      unitCompleted += task.parts.filter((p) => optimisticPartState[p.id] ?? p.completed).length;
+                    } else {
+                      unitTotal += 1;
+                      if (optimisticTaskState[task.id] ?? task.completed) unitCompleted += 1;
+                    }
+                  });
+                  const unitDone = unitTotal > 0 && unitCompleted === unitTotal;
+                  return (
+                    <AccordionItem value={unit.id.toString()} key={unit.id}>
+                      <AccordionTrigger>
+                        <div className="flex items-center min-w-0 w-full gap-2">
+                          <span className="font-semibold min-w-[110px]">Unit {unit.number}:</span>
+                          <span className="truncate flex-1 flex items-center">
+                            {unit.title}
+                            {unitDone && (
+                              <span className="text-green-600 ml-2" title="All done!">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 inline-block align-middle"><path fillRule="evenodd" d="M16.704 6.29a1 1 0 0 1 .006 1.414l-6.01 6.1a1 1 0 0 1-1.42-.01l-3.01-3.1a1 1 0 1 1 1.428-1.4l2.3 2.37 5.3-5.38a1 1 0 0 1 1.406.006z" clipRule="evenodd" /></svg>
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-xs text-gray-500 ml-2">({unitCompleted}/{unitTotal})</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <ul className="space-y-2">
+                          {unit.tasks.map((task) => {
+                            // For split tasks, checked if all parts are checked (optimistically)
+                            const taskChecked = task.parts.length > 0
+                              ? task.parts.every((p) => optimisticPartState[p.id] ?? p.completed)
+                              : optimisticTaskState[task.id] ?? task.completed;
+                            return (
+                              <li key={task.id} className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`task-${task.id}`}
+                                    checked={taskChecked}
+                                    onCheckedChange={() => handleToggleTask(task)}
+                                    disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
+                                  />
+                                  <label htmlFor={`task-${task.id}`} className="cursor-pointer select-none flex items-center mx-1" onClick={() => handleToggleTask(task)}>
+                                    {task.number}
+                                  </label>
+                                  {task.parts.length > 0 && (
+                                    <span className="text-xs text-gray-500">(split)</span>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleSplitTask(task.id)}
+                                    disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
+                                  >
+                                    Split
+                                    {splittingTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
+                                  </Button>
                                   <Button
                                     size="icon"
                                     variant="ghost"
-                                    title="Undo Split"
-                                    onClick={() => handleUndoSplit(task.id)}
+                                    className="text-red-500"
+                                    title="Remove Task"
+                                    onClick={() => handleRemoveTask(task.id)}
                                     disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
                                   >
-                                    ⬅️
-                                    {undoingSplitTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
+                                    🗑️
+                                    {removingTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
                                   </Button>
-                                )}
-                                <span style={{ display: 'inline-block', width: 20, height: 20, marginLeft: 4 }}>
-                                  {(savingTask === task.id || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id) ? (
-                                    <Loader2 className="animate-spin text-gray-400 w-4 h-4" />
-                                  ) : null}
-                                </span>
-                              </div>
-                              {task.parts.length > 0 && (
-                                <ul className="ml-8 flex flex-wrap gap-4">
-                                  {task.parts.map((part) => {
-                                    const partChecked = optimisticPartState[part.id] ?? part.completed;
-                                    return (
-                                      <li key={part.id} className="flex items-center gap-1">
-                                        <Checkbox
-                                          id={`part-${part.id}`}
-                                          checked={partChecked}
-                                          onCheckedChange={() => handleTogglePart(part)}
-                                          disabled={!!savingTask || !!savingPart || removingPart === part.id}
-                                        />
-                                        <label htmlFor={`part-${part.id}`} className="cursor-pointer select-none flex items-center mx-1" onClick={() => handleTogglePart(part)}>
-                                          {part.letter}
-                                        </label>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="text-red-500"
-                                          title="Remove Part"
-                                          onClick={() => handleRemovePart(part.id)}
-                                          disabled={!!savingTask || !!savingPart || removingPart === part.id}
-                                        >
-                                          🗑️
-                                          {removingPart === part.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                                        </Button>
-                                        <span style={{ display: 'inline-block', width: 20, height: 20, marginLeft: 4 }}>
-                                          {(savingPart === part.id || removingPart === part.id) ? (
-                                            <Loader2 className="animate-spin text-gray-400 w-4 h-4" />
-                                          ) : null}
-                                        </span>
-                                      </li>
-                                    );
-                                  })}
-                                  <li>
+                                  {task.parts.length > 0 && (
                                     <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleAddPart(task.id)}
-                                      disabled={!!savingTask || !!savingPart || addingPartTask === task.id}
+                                      size="icon"
+                                      variant="ghost"
+                                      title="Undo Split"
+                                      onClick={() => handleUndoSplit(task.id)}
+                                      disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
                                     >
-                                      + Add Part
-                                      {addingPartTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
+                                      ⬅️
+                                      {undoingSplitTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
                                     </Button>
-                                  </li>
-                                </ul>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                      <div className="mt-4 flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleAddTask(unit.id)}
-                          disabled={!!savingTask || !!savingPart || savingUnit === unit.id}
-                        >
-                          + Add Task
-                          {savingUnit === unit.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                        </Button>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
+                                  )}
+                                  <span style={{ display: 'inline-block', width: 20, height: 20, marginLeft: 4 }}>
+                                    {(savingTask === task.id || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id) ? (
+                                      <Loader2 className="animate-spin text-gray-400 w-4 h-4" />
+                                    ) : null}
+                                  </span>
+                                </div>
+                                {task.parts.length > 0 && (
+                                  <ul className="ml-8 flex flex-wrap gap-4">
+                                    {task.parts.map((part) => {
+                                      const partChecked = optimisticPartState[part.id] ?? part.completed;
+                                      return (
+                                        <li key={part.id} className="flex items-center gap-1">
+                                          <Checkbox
+                                            id={`part-${part.id}`}
+                                            checked={partChecked}
+                                            onCheckedChange={() => handleTogglePart(part)}
+                                            disabled={!!savingTask || !!savingPart || removingPart === part.id}
+                                          />
+                                          <label htmlFor={`part-${part.id}`} className="cursor-pointer select-none flex items-center mx-1" onClick={() => handleTogglePart(part)}>
+                                            {part.letter}
+                                          </label>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="text-red-500"
+                                            title="Remove Part"
+                                            onClick={() => handleRemovePart(part.id)}
+                                            disabled={!!savingTask || !!savingPart || removingPart === part.id}
+                                          >
+                                            🗑️
+                                            {removingPart === part.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
+                                          </Button>
+                                          <span style={{ display: 'inline-block', width: 20, height: 20, marginLeft: 4 }}>
+                                            {(savingPart === part.id || removingPart === part.id) ? (
+                                              <Loader2 className="animate-spin text-gray-400 w-4 h-4" />
+                                            ) : null}
+                                          </span>
+                                        </li>
+                                      );
+                                    })}
+                                    <li>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleAddPart(task.id)}
+                                        disabled={!!savingTask || !!savingPart || addingPartTask === task.id}
+                                      >
+                                        + Add Part
+                                        {addingPartTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
+                                      </Button>
+                                    </li>
+                                  </ul>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        <div className="mt-4 flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleAddTask(unit.id)}
+                            disabled={!!savingTask || !!savingPart || savingUnit === unit.id}
+                          >
+                            + Add Task
+                            {savingUnit === unit.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
               </Accordion>
             </div>
           </div>
