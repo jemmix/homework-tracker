@@ -42,6 +42,7 @@ export const books = createTable(
     userId: d.varchar({ length: 255 }).notNull().references(() => users.id),
     createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+    archived: d.boolean().notNull().default(false),
   }),
   (t) => [index("book_user_id_idx").on(t.userId)]
 );

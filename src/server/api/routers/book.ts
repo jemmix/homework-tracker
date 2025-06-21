@@ -28,6 +28,7 @@ export const bookRouter = createTRPCRouter({
       z.object({
         title: z.string().min(1),
         units: z.array(z.object({ number: z.number(), title: z.string().min(1) })),
+        archived: z.boolean().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -36,6 +37,7 @@ export const bookRouter = createTRPCRouter({
         .values({
           title: input.title,
           userId: ctx.session.user.id,
+          archived: input.archived ?? false,
         })
         .returning();
       if (book && input.units.length > 0) {
@@ -174,6 +176,42 @@ export const bookRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       // Remove all parts for this task
       await ctx.db.delete(taskParts).where(eq(taskParts.taskId, input.id));
+      return true;
+    }),
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        title: z.string().min(1),
+        units: z.array(z.object({ id: z.number().optional(), number: z.number(), title: z.string().min(1) })),
+        archived: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const bookId = Number(input.id);
+      // Update book title and archived
+      await ctx.db.update(books).set({ title: input.title, archived: input.archived ?? false }).where(eq(books.id, bookId));
+      // Fetch existing units
+      const existingUnits = await ctx.db.query.units.findMany({
+        where: (unit, { eq }) => eq(unit.bookId, bookId),
+      });
+      // Update or insert units
+      for (const unit of input.units) {
+        if (unit.id) {
+          // Update existing unit
+          await ctx.db.update(units).set({ title: unit.title, number: unit.number }).where(eq(units.id, unit.id));
+        } else {
+          // Insert new unit
+          await ctx.db.insert(units).values({ bookId, number: unit.number, title: unit.title });
+        }
+      }
+      // Remove units that are not in the new list
+      const inputUnitIds = input.units.filter(u => u.id).map(u => u.id);
+      for (const existing of existingUnits) {
+        if (!inputUnitIds.includes(existing.id)) {
+          await ctx.db.delete(units).where(eq(units.id, existing.id));
+        }
+      }
       return true;
     }),
 });

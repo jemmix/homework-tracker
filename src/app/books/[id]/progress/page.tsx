@@ -1,7 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
 import { api } from "../../../../trpc/react";
-import { Progress } from "../../../../components/ui/progress";
 import {
   Accordion,
   AccordionContent,
@@ -13,6 +12,20 @@ import { Button } from "../../../../components/ui/button";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import Navbar from "../../../_components/navbar";
+
+interface TaskPart {
+  id: number;
+  letter: string;
+  completed: boolean;
+}
+
+interface Task {
+  id: number;
+  unitId: number;
+  number: number;
+  completed: boolean;
+  parts: TaskPart[];
+}
 
 export default function BookProgressPage() {
   const params = useParams();
@@ -49,11 +62,11 @@ export default function BookProgressPage() {
   // Calculate progress
   let total = 0,
     completed = 0;
-  book.units.forEach((unit: any) => {
-    unit.tasks.forEach((task: any) => {
+  book.units.forEach((unit) => {
+    unit.tasks.forEach((task) => {
       if (task.parts.length > 0) {
         total += task.parts.length;
-        completed += task.parts.filter((p: any) => p.completed).length;
+        completed += task.parts.filter((p) => p.completed).length;
       } else {
         total += 1;
         if (task.completed) completed += 1;
@@ -63,28 +76,28 @@ export default function BookProgressPage() {
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   // Handler for toggling a task (including split tasks)
-  const handleToggleTask = async (task: any) => {
+  const handleToggleTask = async (task: Task) => {
     setSavingTask(task.id);
     if (task.parts.length > 0) {
       // For split tasks, update all parts
-      const newCompleted = !task.parts.every((p: any) => optimisticPartState[p.id] ?? p.completed);
+      const newCompleted = !task.parts.every((p) => optimisticPartState[p.id] ?? p.completed);
       // Optimistically update all parts
       setOptimisticPartState((prev) => {
         const next = { ...prev };
-        task.parts.forEach((part: any) => {
+        task.parts.forEach((part) => {
           next[part.id] = newCompleted;
         });
         return next;
       });
       await Promise.all(
-        task.parts.map((part: any) =>
+        task.parts.map((part) =>
           togglePart.mutateAsync({ id: part.id, completed: newCompleted })
         )
       );
       // Clear optimistic state for these parts
       setOptimisticPartState((prev) => {
         const next = { ...prev };
-        task.parts.forEach((part: any) => {
+        task.parts.forEach((part) => {
           delete next[part.id];
         });
         return next;
@@ -103,7 +116,7 @@ export default function BookProgressPage() {
   };
 
   // Handler for toggling a part
-  const handleTogglePart = async (part: any) => {
+  const handleTogglePart = async (part: TaskPart) => {
     setSavingPart(part.id);
     const newCompleted = !(optimisticPartState[part.id] ?? part.completed);
     setOptimisticPartState((prev) => ({ ...prev, [part.id]: newCompleted }));
@@ -165,7 +178,7 @@ export default function BookProgressPage() {
         <div className="w-full flex justify-center pt-8">
           <div className="w-[800px]">
             <Accordion type="multiple" className="mb-8">
-              {book.units.map((unit: any) => (
+              {book.units.map((unit) => (
                 <AccordionItem value={unit.id.toString()} key={unit.id}>
                   <AccordionTrigger>
                     <div className="flex items-center min-w-0 w-full gap-2">
@@ -175,10 +188,10 @@ export default function BookProgressPage() {
                   </AccordionTrigger>
                   <AccordionContent>
                     <ul className="space-y-2">
-                      {unit.tasks.map((task: any) => {
+                      {unit.tasks.map((task) => {
                         // For split tasks, checked if all parts are checked (optimistically)
                         const taskChecked = task.parts.length > 0
-                          ? task.parts.every((p: any) => optimisticPartState[p.id] ?? p.completed)
+                          ? task.parts.every((p) => optimisticPartState[p.id] ?? p.completed)
                           : optimisticTaskState[task.id] ?? task.completed;
                         return (
                           <li key={task.id} className="flex flex-col gap-1">
@@ -235,7 +248,7 @@ export default function BookProgressPage() {
                             </div>
                             {task.parts.length > 0 && (
                               <ul className="ml-8 flex flex-wrap gap-4">
-                                {task.parts.map((part: any) => {
+                                {task.parts.map((part) => {
                                   const partChecked = optimisticPartState[part.id] ?? part.completed;
                                   return (
                                     <li key={part.id} className="flex items-center gap-1">

@@ -14,21 +14,23 @@ interface BookFormProps {
 }
 
 type Unit = { number: number; title: string };
-
-type BookWithUnits = {
-  id: number;
-  title: string;
-  units: Unit[];
-};
+type UnitWithId = { id: number; number: number; title: string };
 
 export default function BookForm({ bookId, onSave }: BookFormProps) {
   const [title, setTitle] = useState("");
   const [units, setUnits] = useState<Unit[]>([]);
   const [unitTitle, setUnitTitle] = useState("");
   const [unitNumber, setUnitNumber] = useState(1);
+  const [archived, setArchived] = useState(false);
   const router = useRouter();
   const createBook = api.book.create.useMutation({
-    onSuccess: (book) => {
+    onSuccess: () => {
+      if (onSave) onSave();
+      router.push("/");
+    },
+  });
+  const updateBook = api.book.update.useMutation({
+    onSuccess: () => {
       if (onSave) onSave();
       router.push("/");
     },
@@ -47,6 +49,7 @@ export default function BookForm({ bookId, onSave }: BookFormProps) {
           ? Math.max(...(getBook.data.units as Unit[]).map((u) => u.number)) + 1
           : 1
       );
+      setArchived(!!getBook.data.archived);
     }
   }, [getBook.data]);
 
@@ -60,9 +63,24 @@ export default function BookForm({ bookId, onSave }: BookFormProps) {
     setUnits(units.filter((_, i) => i !== idx));
   }
 
+  function handleUnitTitleChange(idx: number, newTitle: string) {
+    setUnits(units.map((u, i) => i === idx ? { ...u, title: newTitle } : u));
+  }
+
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    createBook.mutate({ title, units });
+    if (bookId) {
+      // If editing, include unit ids if present
+      const unitsWithIds: UnitWithId[] = (getBook.data?.units ?? []).map((u: UnitWithId) => ({ id: u.id, number: u.number, title: u.title }));
+      // Merge ids into units array
+      const mergedUnits = units.map((unit, idx) => ({
+        ...unit,
+        id: unitsWithIds[idx]?.id,
+      }));
+      updateBook.mutate({ id: bookId, title, units: mergedUnits, archived });
+    } else {
+      createBook.mutate({ title, units, archived });
+    }
   }
 
   return (
@@ -76,6 +94,15 @@ export default function BookForm({ bookId, onSave }: BookFormProps) {
           className="mb-4"
           required
         />
+        <div className="mb-4 flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="archived"
+            checked={archived}
+            onChange={e => setArchived(e.target.checked)}
+          />
+          <label htmlFor="archived" className="select-none cursor-pointer">Archived</label>
+        </div>
         <div className="mb-4">
           <div className="flex gap-2 mb-2">
             <Input
@@ -98,7 +125,12 @@ export default function BookForm({ bookId, onSave }: BookFormProps) {
             {units.map((unit, idx) => (
               <li key={idx} className="flex items-center gap-2 mb-1">
                 <span className="font-mono">{unit.number}.</span>
-                <span>{unit.title}</span>
+                <Input
+                  value={unit.title}
+                  onChange={e => handleUnitTitleChange(idx, e.target.value)}
+                  className="w-48"
+                  required
+                />
                 <Button type="button" size="sm" variant="destructive" onClick={() => removeUnit(idx)}>
                   Remove
                 </Button>
@@ -106,8 +138,8 @@ export default function BookForm({ bookId, onSave }: BookFormProps) {
             ))}
           </ul>
         </div>
-        <Button type="submit" className="w-full" disabled={createBook.isPending}>
-          {createBook.isPending ? "Saving..." : bookId ? "Save Changes" : "Save Book"}
+        <Button type="submit" className="w-full" disabled={createBook.isPending || updateBook.isPending}>
+          {(createBook.isPending || updateBook.isPending) ? "Saving..." : bookId ? "Save Changes" : "Save Book"}
         </Button>
       </form>
     </Card>
