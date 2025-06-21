@@ -14,7 +14,7 @@ export const bookRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const book = await ctx.db.query.books.findFirst({
-        where: (book, { eq }) => eq(book.id, Number(input.id)),
+        where: (book, { eq, and }) => and(eq(book.id, Number(input.id)), eq(book.userId, ctx.session.user.id)),
       });
       if (!book) return null;
       const bookUnits = await ctx.db.query.units.findMany({
@@ -55,7 +55,7 @@ export const bookRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const book = await ctx.db.query.books.findFirst({
-        where: (book, { eq }) => eq(book.id, Number(input.id)),
+        where: (book, { eq, and }) => and(eq(book.id, Number(input.id)), eq(book.userId, ctx.session.user.id)),
       });
       if (!book) return null;
       const bookUnits = await ctx.db.query.units.findMany({
@@ -92,6 +92,11 @@ export const bookRouter = createTRPCRouter({
   addTask: protectedProcedure
     .input(z.object({ unitId: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      // Check unit ownership
+      const unit = await ctx.db.query.units.findFirst({ where: (u, { eq }) => eq(u.id, input.unitId) });
+      if (!unit) throw new Error("Unit not found");
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       // Find the next task number for this unit
       const lastTask = await ctx.db.query.tasks.findFirst({
         where: (task, { eq }) => eq(task.unitId, input.unitId),
@@ -107,6 +112,13 @@ export const bookRouter = createTRPCRouter({
   splitTask: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      // Check task ownership
+      const task = await ctx.db.query.tasks.findFirst({ where: (t, { eq }) => eq(t.id, input.id) });
+      if (!task) throw new Error("Task not found");
+      const unit = await ctx.db.query.units.findFirst({ where: (u, { eq }) => eq(u.id, task.unitId) });
+      if (!unit) throw new Error("Unit not found");
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       // Add two parts a, b if not already split
       const parts = await ctx.db.query.taskParts.findMany({
         where: (part, { eq }) => eq(part.taskId, input.id),
@@ -122,6 +134,13 @@ export const bookRouter = createTRPCRouter({
   toggleTask: protectedProcedure
     .input(z.object({ id: z.number(), completed: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
+      // Check task ownership
+      const task = await ctx.db.query.tasks.findFirst({ where: (t, { eq }) => eq(t.id, input.id) });
+      if (!task) throw new Error("Task not found");
+      const unit = await ctx.db.query.units.findFirst({ where: (u, { eq }) => eq(u.id, task.unitId) });
+      if (!unit) throw new Error("Unit not found");
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       await ctx.db
         .update(tasks)
         .set({ completed: input.completed })
@@ -131,6 +150,15 @@ export const bookRouter = createTRPCRouter({
   togglePart: protectedProcedure
     .input(z.object({ id: z.number(), completed: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
+      // Check part ownership
+      const part = await ctx.db.query.taskParts.findFirst({ where: (p, { eq }) => eq(p.id, input.id) });
+      if (!part) throw new Error("Part not found");
+      const task = await ctx.db.query.tasks.findFirst({ where: (t, { eq }) => eq(t.id, part.taskId) });
+      if (!task) throw new Error("Task not found");
+      const unit = await ctx.db.query.units.findFirst({ where: (u, { eq }) => eq(u.id, task.unitId) });
+      if (!unit) throw new Error("Unit not found");
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       await ctx.db
         .update(taskParts)
         .set({ completed: input.completed })
@@ -140,6 +168,13 @@ export const bookRouter = createTRPCRouter({
   removeTask: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      // Check task ownership
+      const task = await ctx.db.query.tasks.findFirst({ where: (t, { eq }) => eq(t.id, input.id) });
+      if (!task) throw new Error("Task not found");
+      const unit = await ctx.db.query.units.findFirst({ where: (u, { eq }) => eq(u.id, task.unitId) });
+      if (!unit) throw new Error("Unit not found");
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       // Remove all parts for this task
       await ctx.db.delete(taskParts).where(eq(taskParts.taskId, input.id));
       // Remove the task itself
@@ -149,6 +184,13 @@ export const bookRouter = createTRPCRouter({
   addPart: protectedProcedure
     .input(z.object({ taskId: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      // Check task ownership
+      const task = await ctx.db.query.tasks.findFirst({ where: (t, { eq }) => eq(t.id, input.taskId) });
+      if (!task) throw new Error("Task not found");
+      const unit = await ctx.db.query.units.findFirst({ where: (u, { eq }) => eq(u.id, task.unitId) });
+      if (!unit) throw new Error("Unit not found");
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       // Find next letter
       const parts = await ctx.db.query.taskParts.findMany({
         where: (part, { eq }) => eq(part.taskId, input.taskId),
@@ -168,12 +210,28 @@ export const bookRouter = createTRPCRouter({
   removePart: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      // Check part ownership
+      const part = await ctx.db.query.taskParts.findFirst({ where: (p, { eq }) => eq(p.id, input.id) });
+      if (!part) throw new Error("Part not found");
+      const task = await ctx.db.query.tasks.findFirst({ where: (t, { eq }) => eq(t.id, part.taskId) });
+      if (!task) throw new Error("Task not found");
+      const unit = await ctx.db.query.units.findFirst({ where: (u, { eq }) => eq(u.id, task.unitId) });
+      if (!unit) throw new Error("Unit not found");
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       await ctx.db.delete(taskParts).where(eq(taskParts.id, input.id));
       return true;
     }),
   undoSplit: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      // Check task ownership
+      const task = await ctx.db.query.tasks.findFirst({ where: (t, { eq }) => eq(t.id, input.id) });
+      if (!task) throw new Error("Task not found");
+      const unit = await ctx.db.query.units.findFirst({ where: (u, { eq }) => eq(u.id, task.unitId) });
+      if (!unit) throw new Error("Unit not found");
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       // Remove all parts for this task
       await ctx.db.delete(taskParts).where(eq(taskParts.taskId, input.id));
       return true;
@@ -189,6 +247,9 @@ export const bookRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const bookId = Number(input.id);
+      // Check book ownership
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       // Update book title and archived
       await ctx.db.update(books).set({ title: input.title, archived: input.archived ?? false }).where(eq(books.id, bookId));
       // Fetch existing units
