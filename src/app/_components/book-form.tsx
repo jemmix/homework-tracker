@@ -7,6 +7,7 @@ import type { ChangeEvent, FormEvent } from "react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../../trpc/react";
+import { Loader2 } from "lucide-react";
 
 interface BookFormProps {
   bookId?: string;
@@ -37,7 +38,12 @@ export default function BookForm({ bookId, onSave }: BookFormProps) {
   });
   const getBook = api.book.get.useQuery(
     { id: bookId! },
-    { enabled: !!bookId }
+    {
+      enabled: !!bookId,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    }
   );
 
   useEffect(() => {
@@ -81,6 +87,21 @@ export default function BookForm({ bookId, onSave }: BookFormProps) {
     } else {
       createBook.mutate({ title, units, archived });
     }
+  }
+
+  if (bookId && getBook.isLoading) {
+    return (
+      <Card className="p-6 max-w-lg mx-auto mt-8 text-center">
+        <span className="inline-flex items-center gap-2 text-gray-500"><Loader2 className="animate-spin w-5 h-5" /> Loading...</span>
+      </Card>
+    );
+  }
+  if (bookId && !getBook.data) {
+    return (
+      <Card className="p-6 max-w-lg mx-auto mt-8 text-center">
+        <span className="text-red-500">Book not found or you do not have access.</span>
+      </Card>
+    );
   }
 
   return (
