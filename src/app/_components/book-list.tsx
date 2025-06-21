@@ -5,7 +5,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../../trpc/react";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Check } from "lucide-react";
 
 interface TaskPart {
   completed: boolean;
@@ -111,23 +111,12 @@ export function BookList({ books }: { books: Book[] }) {
             return (
               <SortableBookItem key={book.id} book={book}>
                 <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="truncate font-medium">{book.title}</span>
                   {allDone && (
                     <span className="text-green-600" title="All units complete!">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="w-5 h-5 inline-block align-middle"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.704 6.29a1 1 0 0 1 .006 1.414l-6.01 6.1a1 1 0 0 1-1.42-.01l-3.01-3.1a1 1 0 1 1 1.428-1.4l2.3 2.37 5.3-5.38a1 1 0 0 1 1.406.006z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                      <Check className="w-5 h-5 inline-block align-middle" />
                     </span>
                   )}
-                  <span className="truncate font-medium">{book.title}</span>
                   <span className="text-xs text-gray-500 ml-2 shrink-0">
                     ({completedTasks}/{totalTasks} tasks, {completedUnits}/{totalUnits} units)
                   </span>

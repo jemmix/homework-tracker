@@ -10,7 +10,7 @@ import {
 import { Checkbox } from "../../../../components/ui/checkbox";
 import { Button } from "../../../../components/ui/button";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import Navbar from "../../../_components/navbar";
 
 interface TaskPart {
@@ -201,7 +201,7 @@ export default function BookProgressPage() {
                             {unit.title}
                             {unitDone && (
                               <span className="text-green-600 ml-2" title="All done!">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 inline-block align-middle"><path fillRule="evenodd" d="M16.704 6.29a1 1 0 0 1 .006 1.414l-6.01 6.1a1 1 0 0 1-1.42-.01l-3.01-3.1a1 1 0 1 1 1.428-1.4l2.3 2.37 5.3-5.38a1 1 0 0 1 1.406.006z" clipRule="evenodd" /></svg>
+                                <Check className="w-5 h-5 inline-block align-middle" />
                               </span>
                             )}
                           </span>
