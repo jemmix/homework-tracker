@@ -174,9 +174,6 @@ export default function BookProgressPage() {
 
   return (
     <>
-      <Head>
-        <title>{book.title} - Book Progress - Homework Tracker</title>
-      </Head>
       <main className="min-h-screen bg-slate-50 pb-16 flex flex-col">
         <Navbar progress={percent} bookTitle={book.title} showLogout />
         <div className="max-w-xl mx-auto pt-8">

@@ -21,9 +21,6 @@ export default async function Home() {
 
   return (
     <>
-      <Head>
-        <title>Homework Tracker</title>
-      </Head>
       <HydrateClient>
         <Navbar showLogout={!!session} />
         <main className="max-w-2xl mx-auto p-6">

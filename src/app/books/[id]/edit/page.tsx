@@ -9,9 +9,6 @@ export default function EditBookPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   return (
     <>
-      <Head>
-        <title>Edit Book – Homework Tracker</title>
-      </Head>
       <main className="min-h-screen flex flex-col bg-slate-50">
         <Navbar />
         <div className="flex flex-1 items-center justify-center">
