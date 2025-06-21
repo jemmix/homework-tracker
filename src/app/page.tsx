@@ -2,11 +2,23 @@ import Link from "next/link";
 import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
 import Navbar from "./_components/navbar";
-import ArchivedBooksSection from "./_components/archived-books-section";
+import { BookList } from "./_components/book-list";
+import { ShowHideArchived } from "./_components/show-hide-archived";
+
+export interface TaskPart {
+  completed: boolean;
+}
+export interface Task {
+  parts: TaskPart[];
+  completed: boolean;
+}
+export interface Unit {
+  tasks: Task[];
+}
 
 export default async function Home() {
   const session = await auth();
-  let books: { id: number; title: string; archived?: boolean }[] = [];
+  let books: { id: number; title: string; archived?: boolean; units?: Unit[] }[] = [];
   if (session?.user) {
     books = await api.book.list();
   }
@@ -27,36 +39,11 @@ export default async function Home() {
           {session ? (
             <>
               {activeBooks.length > 0 ? (
-                <ul className="space-y-2 mb-6">
-                  {activeBooks.map((book) => (
-                    <li
-                      key={book.id}
-                      className="bg-white rounded shadow p-4 flex items-center justify-between"
-                    >
-                      <span>{book.title}</span>
-                      <span className="flex gap-4">
-                        <Link
-                          href={`/books/${book.id}/progress`}
-                          className="text-blue-600 hover:underline"
-                        >
-                          Open
-                        </Link>
-                        <Link
-                          href={`/books/${book.id}/edit`}
-                          className="text-gray-600 hover:underline"
-                        >
-                          Edit
-                        </Link>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <BookList books={activeBooks} />
               ) : (
                 <p className="text-gray-600 mb-6">No books found.</p>
               )}
-              {archivedBooks.length > 0 && (
-                <ArchivedBooksSection books={archivedBooks} />
-              )}
+              {archivedBooks.length > 0 && <ShowHideArchived books={archivedBooks} />}
             </>
           ) : (
             <p className="text-gray-600 mb-6">Please log in to see your books.</p>
