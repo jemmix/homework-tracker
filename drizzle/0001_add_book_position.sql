@@ -1,5 +1,5 @@
 -- Add a position column to the books table for user-customizable ordering
-ALTER TABLE books ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "homework-tracker_book" ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
 
 -- Optional: Initialize position values based on current order (if needed)
--- UPDATE books SET position = id;
+-- UPDATE "homework-tracker_book" SET position = id;
