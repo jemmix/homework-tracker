@@ -2,7 +2,6 @@
 import BookForm from "../../../_components/book-form";
 import { useParams } from "next/navigation";
 import Navbar from "../../../_components/navbar";
-import Head from "next/head";
 
 export default function EditBookPage() {
   const params = useParams();

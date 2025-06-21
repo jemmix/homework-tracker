@@ -3,7 +3,6 @@ import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
 import Navbar from "./_components/navbar";
 import ArchivedBooksSection from "./_components/archived-books-section";
-import Head from "next/head";
 
 export default async function Home() {
   const session = await auth();

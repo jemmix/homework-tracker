@@ -1,6 +1,5 @@
 import BookForm from "../../_components/book-form";
 import Navbar from "../../_components/navbar";
-import Head from "next/head";
 
 export default function CreateBookPage() {
   return (

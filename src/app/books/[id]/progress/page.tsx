@@ -12,7 +12,6 @@ import { Button } from "../../../../components/ui/button";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import Navbar from "../../../_components/navbar";
-import Head from "next/head";
 
 interface TaskPart {
   id: number;
