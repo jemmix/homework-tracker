@@ -41,7 +41,7 @@
     "next-auth": "5.0.0-beta.25",
     "postgres": "^3.4.4",
     "react": "19.2.1",
-    "react-dom": "^19.0.0",
+    "react-dom": "19.2.1",
     "server-only": "^0.0.1",
     "shadcn": "^2.7.0",
     "superjson": "^2.2.1",
