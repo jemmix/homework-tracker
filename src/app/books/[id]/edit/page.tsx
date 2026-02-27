@@ -7,13 +7,11 @@ export default function EditBookPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   return (
-    <>
-      <main className="min-h-screen flex flex-col bg-slate-50">
-        <Navbar />
-        <div className="flex flex-1 items-center justify-center">
-          <BookForm bookId={id} />
-        </div>
-      </main>
-    </>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      <div className="flex flex-1 items-center justify-center px-6 py-10">
+        <BookForm bookId={id} />
+      </div>
+    </div>
   );
 }

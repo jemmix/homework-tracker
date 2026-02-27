@@ -60,6 +60,7 @@ export const units = createTable(
     bookId: d.integer().notNull().references(() => books.id),
     title: d.varchar({ length: 255 }).notNull(),
     number: d.integer().notNull(), // can start at any number
+    expanded: d.boolean().notNull().default(false),
     createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
   }),

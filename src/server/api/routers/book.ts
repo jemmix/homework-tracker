@@ -157,16 +157,15 @@ export const bookRouter = createTRPCRouter({
       const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
       if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       // Add two parts a, b if not already split
-      const parts = await ctx.db.query.taskParts.findMany({
+      const existing = await ctx.db.query.taskParts.findMany({
         where: (part, { eq }) => eq(part.taskId, input.id),
       });
-      if (parts.length === 0) {
-        await ctx.db.insert(taskParts).values([
-          { taskId: input.id, letter: "a" },
-          { taskId: input.id, letter: "b" },
-        ]);
-      }
-      return true;
+      if (existing.length > 0) return existing;
+      const created = await ctx.db.insert(taskParts).values([
+        { taskId: input.id, letter: "a" },
+        { taskId: input.id, letter: "b" },
+      ]).returning();
+      return created;
     }),
   toggleTask: protectedProcedure
     .input(z.object({ id: z.number(), completed: z.boolean() }))
@@ -257,7 +256,7 @@ export const bookRouter = createTRPCRouter({
       const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
       if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
       await ctx.db.delete(taskParts).where(eq(taskParts.id, input.id));
-      return true;
+      return { id: input.id, taskId: part.taskId };
     }),
   undoSplit: protectedProcedure
     .input(z.object({ id: z.number() }))
@@ -311,6 +310,19 @@ export const bookRouter = createTRPCRouter({
         }
       }
       return true;
+    }),
+  setUnitExpanded: protectedProcedure
+    .input(z.object({ unitId: z.number(), expanded: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const unit = await ctx.db.query.units.findFirst({ where: (u, { eq }) => eq(u.id, input.unitId) });
+      if (!unit) throw new Error("Unit not found");
+      const book = await ctx.db.query.books.findFirst({ where: (b, { eq }) => eq(b.id, unit.bookId) });
+      if (!book || book.userId !== ctx.session.user.id) throw new Error("Forbidden");
+      await ctx.db
+        .update(units)
+        .set({ expanded: input.expanded })
+        .where(eq(units.id, input.unitId));
+      return { id: input.unitId, expanded: input.expanded };
     }),
   reorder: protectedProcedure
     .input(z.object({

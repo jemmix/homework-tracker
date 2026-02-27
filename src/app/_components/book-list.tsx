@@ -5,7 +5,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../../trpc/react";
-import { GripVertical, Check } from "lucide-react";
+import { GripVertical, Check, ArrowRight, Pencil } from "lucide-react";
 
 interface TaskPart {
   completed: boolean;
@@ -26,8 +26,8 @@ interface Book {
 
 function DragHandle() {
   return (
-    <span className="cursor-grab pr-2 text-gray-400 hover:text-gray-600" title="Drag to reorder">
-      <GripVertical className="w-5 h-5" />
+    <span className="cursor-grab active:cursor-grabbing pr-1 text-warm-gray hover:text-primary transition-colors" title="Drag to reorder">
+      <GripVertical className="w-4 h-4" />
     </span>
   );
 }
@@ -40,7 +40,7 @@ function SortableBookItem({ book, children }: { book: Book; children: React.Reac
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-      className="bg-white rounded shadow p-4 flex items-center justify-between relative"
+      className="group bg-card rounded-xl border-2 border-border/50 px-4 py-4 pb-5 flex items-center justify-between relative hover:border-primary/20 hover:shadow-md transition-all duration-200"
     >
       <div className="flex items-center flex-1 min-w-0 gap-2">
         <div className="flex items-center h-full">
@@ -63,7 +63,6 @@ export function BookList({ books }: { books: Book[] }) {
   const reorderBooks = api.book.reorder.useMutation();
   const sensors = useSensors(useSensor(PointerSensor));
 
-  // Keep local order in sync with prop changes
   useEffect(() => {
     setItems(books.map(b => b.id));
   }, [books]);
@@ -81,7 +80,7 @@ export function BookList({ books }: { books: Book[] }) {
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        <ul className="space-y-2 mb-6">
+        <ul className="space-y-3 mb-6">
           {items.map((id) => {
             const book = books.find((b) => b.id === id)!;
             let totalTasks = 0,
@@ -108,42 +107,48 @@ export function BookList({ books }: { books: Book[] }) {
               });
             }
             const allDone = totalUnits > 0 && completedUnits === totalUnits;
+            const progressPct = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
             return (
               <SortableBookItem key={book.id} book={book}>
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="truncate font-medium">{book.title}</span>
-                  {allDone && (
-                    <span className="text-green-600" title="All units complete!">
-                      <Check className="w-5 h-5 inline-block align-middle" />
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-serif text-base font-semibold text-foreground">{book.title}</span>
+                      {allDone && (
+                        <span className="flex items-center justify-center size-5 rounded-full bg-sage-light text-sage" title="All units complete!">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground mt-0.5">
+                      {completedTasks}/{totalTasks} tasks &middot; {completedUnits}/{totalUnits} units
                     </span>
-                  )}
-                  <span className="text-xs text-gray-500 ml-2 shrink-0">
-                    ({completedTasks}/{totalTasks} tasks, {completedUnits}/{totalUnits} units)
-                  </span>
+                  </div>
                 </div>
-                <span className="flex gap-4 ml-4 shrink-0 items-center justify-end">
+                <span className="flex gap-1.5 ml-4 shrink-0 items-center">
                   <Link
                     href={`/books/${book.id}/progress`}
-                    className="text-blue-600 hover:underline"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-primary/5"
                   >
                     Open
+                    <ArrowRight className="size-3.5" />
                   </Link>
                   <Link
                     href={`/books/${book.id}/edit`}
-                    className="text-gray-600 hover:underline"
+                    className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-accent/60"
                   >
-                    Edit
+                    <Pencil className="size-3" />
                   </Link>
                 </span>
                 {/* Progress bar */}
                 <span
-                  className="absolute left-4 right-4 bottom-2 h-1 rounded bg-gray-200 overflow-hidden"
+                  className="absolute left-4 right-4 bottom-1.5 h-1 rounded-full bg-secondary overflow-hidden"
                   aria-hidden="true"
                   style={{ pointerEvents: 'none' }}
                 >
                   <span
-                    className="block h-full bg-green-500 transition-all duration-300"
-                    style={{ width: totalTasks > 0 ? `${(completedTasks / totalTasks) * 100}%` : 0 }}
+                    className="block h-full rounded-full bg-sage/70 transition-all duration-500 ease-out"
+                    style={{ width: totalTasks > 0 ? `${progressPct}%` : '0%' }}
                   />
                 </span>
               </SortableBookItem>

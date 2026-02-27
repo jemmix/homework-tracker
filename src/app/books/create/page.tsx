@@ -3,13 +3,11 @@ import Navbar from "../../_components/navbar";
 
 export default function CreateBookPage() {
   return (
-    <>
-      <main className="min-h-screen flex flex-col bg-slate-50">
-        <Navbar />
-        <div className="flex flex-1 items-center justify-center">
-          <BookForm />
-        </div>
-      </main>
-    </>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      <div className="flex flex-1 items-center justify-center px-6 py-10">
+        <BookForm />
+      </div>
+    </div>
   );
 }

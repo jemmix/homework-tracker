@@ -9,8 +9,8 @@ import {
 } from "../../../../components/ui/accordion";
 import { Checkbox } from "../../../../components/ui/checkbox";
 import { Button } from "../../../../components/ui/button";
-import { useState } from "react";
-import { Loader2, Check } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { Loader2, Check, Plus, Trash2, Scissors, Undo2 } from "lucide-react";
 import Navbar from "../../../_components/navbar";
 
 interface TaskPart {
@@ -27,39 +27,382 @@ interface Task {
   parts: TaskPart[];
 }
 
+interface Unit {
+  id: number;
+  number: number;
+  title: string;
+  expanded: boolean;
+  tasks: Task[];
+}
+
+interface BookData {
+  id: number;
+  title: string;
+  units: Unit[];
+}
+
+// ─── Individual part row ────────────────────────────────────────────
+
+function PartItem({
+  part,
+  onToggle,
+  onRemove,
+}: {
+  part: TaskPart;
+  onToggle: (partId: number, newCompleted: boolean) => void;
+  onRemove: (partId: number) => void;
+}) {
+  const [toggling, setToggling] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  return (
+    <li className="flex items-center gap-1.5">
+      <div className="flex items-center w-7 shrink-0">
+        <Checkbox
+          id={`part-${part.id}`}
+          checked={part.completed}
+          onCheckedChange={async () => {
+            setToggling(true);
+            await onToggle(part.id, !part.completed);
+            setToggling(false);
+          }}
+          disabled={removing}
+          className="size-4"
+        />
+        <span className="w-3 flex items-center justify-center ml-0.5">
+          {toggling && <Loader2 className="animate-spin size-2.5 text-muted-foreground" />}
+        </span>
+      </div>
+      <label
+        htmlFor={`part-${part.id}`}
+        className={`cursor-pointer select-none text-xs font-medium transition-colors ${part.completed ? 'text-sage' : 'text-foreground'}`}
+      >
+        {part.letter}
+      </label>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="size-5 text-destructive/40 hover:text-destructive"
+        title="Remove Part"
+        onClick={async () => {
+          setRemoving(true);
+          await onRemove(part.id);
+          // component unmounts after removal, no need to setRemoving(false)
+        }}
+        disabled={removing}
+      >
+        {removing ? <Loader2 className="animate-spin size-3" /> : <Trash2 className="size-3" />}
+      </Button>
+    </li>
+  );
+}
+
+// ─── Individual task row ────────────────────────────────────────────
+
+function TaskRow({
+  task,
+  onToggleTask,
+  onTogglePart,
+  onSplit,
+  onUndoSplit,
+  onRemoveTask,
+  onAddPart,
+  onRemovePart,
+}: {
+  task: Task;
+  onToggleTask: (taskId: number, newCompleted: boolean) => void;
+  onTogglePart: (partId: number, newCompleted: boolean) => void;
+  onSplit: (taskId: number) => Promise<void>;
+  onUndoSplit: (taskId: number) => Promise<void>;
+  onRemoveTask: (taskId: number) => Promise<void>;
+  onAddPart: (taskId: number) => Promise<void>;
+  onRemovePart: (partId: number) => void;
+}) {
+  const [toggling, setToggling] = useState(false);
+  const [splitting, setSplitting] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [addingPart, setAddingPart] = useState(false);
+
+  const isSplit = task.parts.length > 0;
+  const taskChecked = isSplit
+    ? task.parts.every((p) => p.completed)
+    : task.completed;
+  const structuralBusy = splitting || undoing || removing;
+
+  return (
+    <li className="flex flex-col gap-1">
+      <div className={`flex items-center gap-2.5 py-1.5 px-2 rounded-lg transition-colors ${taskChecked ? 'bg-sage-light/40' : 'hover:bg-secondary/50'}`}>
+        <div className="flex items-center w-9 shrink-0">
+          <Checkbox
+            id={`task-${task.id}`}
+            checked={taskChecked}
+            onCheckedChange={async () => {
+              setToggling(true);
+              if (isSplit) {
+                const newVal = !taskChecked;
+                await Promise.all(task.parts.map((p) => onTogglePart(p.id, newVal)));
+              } else {
+                await onToggleTask(task.id, !task.completed);
+              }
+              setToggling(false);
+            }}
+            disabled={structuralBusy}
+          />
+          <span className="w-4 flex items-center justify-center ml-0.5">
+            {toggling && <Loader2 className="animate-spin size-3 text-muted-foreground" />}
+          </span>
+        </div>
+        <label
+          htmlFor={`task-${task.id}`}
+          className={`cursor-pointer select-none text-sm font-medium transition-colors ${taskChecked ? 'text-sage' : 'text-foreground'}`}
+        >
+          {task.number}
+        </label>
+        <div className="flex items-center gap-0.5 ml-auto">
+          {isSplit ? (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-7 text-muted-foreground hover:text-foreground"
+              title="Undo Split"
+              onClick={async () => { setUndoing(true); await onUndoSplit(task.id); setUndoing(false); }}
+              disabled={structuralBusy}
+            >
+              {undoing ? <Loader2 className="animate-spin size-3.5" /> : <Undo2 className="size-3.5" />}
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-7 text-muted-foreground hover:text-primary"
+              title="Split"
+              onClick={async () => { setSplitting(true); await onSplit(task.id); setSplitting(false); }}
+              disabled={structuralBusy}
+            >
+              {splitting ? <Loader2 className="animate-spin size-3.5" /> : <Scissors className="size-3.5" />}
+            </Button>
+          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7 text-destructive/50 hover:text-destructive"
+            title="Remove Task"
+            onClick={async () => { setRemoving(true); await onRemoveTask(task.id); }}
+            disabled={structuralBusy}
+          >
+            {removing ? <Loader2 className="animate-spin size-3.5" /> : <Trash2 className="size-3.5" />}
+          </Button>
+        </div>
+      </div>
+      {isSplit && (
+        <ul className="ml-9 flex flex-wrap gap-x-4 gap-y-1.5 py-1">
+          {task.parts.map((part) => (
+            <PartItem
+              key={part.id}
+              part={part}
+              onToggle={onTogglePart}
+              onRemove={onRemovePart}
+            />
+          ))}
+          <li>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 text-xs text-muted-foreground hover:text-primary"
+              onClick={async () => { setAddingPart(true); await onAddPart(task.id); setAddingPart(false); }}
+              disabled={addingPart}
+            >
+              {addingPart ? <Loader2 className="animate-spin size-3" /> : <Plus className="size-3" />}
+              Add Part
+            </Button>
+          </li>
+        </ul>
+      )}
+    </li>
+  );
+}
+
+// ─── Main page ──────────────────────────────────────────────────────
+
 export default function BookProgressPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { data: book, isLoading, refetch } = api.book.progress.useQuery({ id: id ?? "" });
-  const addTask = api.book.addTask.useMutation({ onSuccess: () => refetch() });
-  const splitTask = api.book.splitTask.useMutation({ onSuccess: () => refetch() });
-  const toggleTask = api.book.toggleTask.useMutation({ onSuccess: () => refetch() });
-  const togglePart = api.book.togglePart.useMutation({ onSuccess: () => refetch() });
-  const removeTask = api.book.removeTask.useMutation({ onSuccess: () => refetch() });
-  const addPart = api.book.addPart.useMutation({ onSuccess: () => refetch() });
-  const removePart = api.book.removePart.useMutation({ onSuccess: () => refetch() });
-  const undoSplit = api.book.undoSplit.useMutation({ onSuccess: () => refetch() });
+  const { data: serverBook, isLoading } = api.book.progress.useQuery(
+    { id: id ?? "" },
+    { refetchOnWindowFocus: false },
+  );
 
-  // Optimistic state for saving
-  const [savingTask, setSavingTask] = useState<number | null>(null);
-  const [savingPart, setSavingPart] = useState<number | null>(null);
-  const [savingUnit, setSavingUnit] = useState<number | null>(null); // for addTask
-  const [splittingTask, setSplittingTask] = useState<number | null>(null);
-  const [undoingSplitTask, setUndoingSplitTask] = useState<number | null>(null);
-  const [removingTask, setRemovingTask] = useState<number | null>(null);
-  const [addingPartTask, setAddingPartTask] = useState<number | null>(null);
-  const [removingPart, setRemovingPart] = useState<number | null>(null);
+  // Local state: the single source of truth after initial load.
+  const [book, setBook] = useState<BookData | null>(null);
 
-  // Optimistic completion state
-  const [optimisticTaskState, setOptimisticTaskState] = useState<Record<number, boolean>>({});
-  const [optimisticPartState, setOptimisticPartState] = useState<Record<number, boolean>>({});
+  // Seed local state from the query (once).
+  useEffect(() => {
+    if (serverBook && !book) {
+      setBook(serverBook as BookData);
+    }
+  }, [serverBook, book]);
 
-  if (isLoading)
-    return <div className="p-8 text-center">Loading...</div>;
-  if (!book)
-    return <div className="p-8 text-center">Book not found.</div>;
+  // Mutations — fire-and-forget, no refetch. Return values update local state.
+  const toggleTaskMut = api.book.toggleTask.useMutation();
+  const togglePartMut = api.book.togglePart.useMutation();
+  const addTaskMut = api.book.addTask.useMutation();
+  const splitTaskMut = api.book.splitTask.useMutation();
+  const removeTaskMut = api.book.removeTask.useMutation();
+  const addPartMut = api.book.addPart.useMutation();
+  const removePartMut = api.book.removePart.useMutation();
+  const undoSplitMut = api.book.undoSplit.useMutation();
+  const setUnitExpandedMut = api.book.setUnitExpanded.useMutation();
 
-  // Calculate progress
+  // ── Accordion expanded state ─────────────────────────────────────
+
+  const expandedValue = book
+    ? book.units.filter((u) => u.expanded).map((u) => u.id.toString())
+    : [];
+
+  const handleAccordionChange = useCallback(
+    (newValue: string[]) => {
+      if (!book) return;
+      const newSet = new Set(newValue);
+      for (const unit of book.units) {
+        const wasExpanded = unit.expanded;
+        const isExpanded = newSet.has(unit.id.toString());
+        if (wasExpanded !== isExpanded) {
+          setUnitExpandedMut.mutate({ unitId: unit.id, expanded: isExpanded });
+        }
+      }
+      // Update local state immediately
+      setBook((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          units: prev.units.map((u) => ({
+            ...u,
+            expanded: newSet.has(u.id.toString()),
+          })),
+        };
+      });
+    },
+    [book, setUnitExpandedMut],
+  );
+
+  // ── Local state updaters ──────────────────────────────────────────
+
+  const updateTask = useCallback((taskId: number, updater: (t: Task) => Task) => {
+    setBook((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        units: prev.units.map((u) => ({
+          ...u,
+          tasks: u.tasks.map((t) => t.id === taskId ? updater(t) : t),
+        })),
+      };
+    });
+  }, []);
+
+  const updatePart = useCallback((partId: number, updater: (p: TaskPart) => TaskPart) => {
+    setBook((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        units: prev.units.map((u) => ({
+          ...u,
+          tasks: u.tasks.map((t) => ({
+            ...t,
+            parts: t.parts.map((p) => p.id === partId ? updater(p) : p),
+          })),
+        })),
+      };
+    });
+  }, []);
+
+  // ── Handlers ──────────────────────────────────────────────────────
+
+  const handleToggleTask = useCallback(async (taskId: number, newCompleted: boolean) => {
+    updateTask(taskId, (t) => ({ ...t, completed: newCompleted }));
+    await toggleTaskMut.mutateAsync({ id: taskId, completed: newCompleted });
+  }, [updateTask, toggleTaskMut]);
+
+  const handleTogglePart = useCallback(async (partId: number, newCompleted: boolean) => {
+    updatePart(partId, (p) => ({ ...p, completed: newCompleted }));
+    await togglePartMut.mutateAsync({ id: partId, completed: newCompleted });
+  }, [updatePart, togglePartMut]);
+
+  const handleAddTask = useCallback(async (unitId: number) => {
+    const newTask = await addTaskMut.mutateAsync({ unitId });
+    if (!newTask) return;
+    setBook((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        units: prev.units.map((u) =>
+          u.id === unitId
+            ? { ...u, tasks: [...u.tasks, { ...newTask, parts: [] }] }
+            : u
+        ),
+      };
+    });
+  }, [addTaskMut]);
+
+  const handleRemoveTask = useCallback(async (taskId: number) => {
+    await removeTaskMut.mutateAsync({ id: taskId });
+    setBook((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        units: prev.units.map((u) => ({
+          ...u,
+          tasks: u.tasks.filter((t) => t.id !== taskId),
+        })),
+      };
+    });
+  }, [removeTaskMut]);
+
+  const handleSplit = useCallback(async (taskId: number) => {
+    const parts = await splitTaskMut.mutateAsync({ id: taskId });
+    updateTask(taskId, (t) => ({
+      ...t,
+      parts: parts.map((p) => ({ id: p.id, letter: p.letter ?? "", completed: p.completed })),
+    }));
+  }, [splitTaskMut, updateTask]);
+
+  const handleUndoSplit = useCallback(async (taskId: number) => {
+    await undoSplitMut.mutateAsync({ id: taskId });
+    updateTask(taskId, (t) => ({ ...t, parts: [], completed: false }));
+  }, [undoSplitMut, updateTask]);
+
+  const handleAddPart = useCallback(async (taskId: number) => {
+    const newPart = await addPartMut.mutateAsync({ taskId });
+    if (!newPart) return;
+    updateTask(taskId, (t) => ({
+      ...t,
+      parts: [...t.parts, { id: newPart.id, letter: newPart.letter ?? "", completed: newPart.completed }],
+    }));
+  }, [addPartMut, updateTask]);
+
+  const handleRemovePart = useCallback(async (partId: number) => {
+    const result = await removePartMut.mutateAsync({ id: partId });
+    updateTask(result.taskId, (t) => ({
+      ...t,
+      parts: t.parts.filter((p) => p.id !== partId),
+    }));
+  }, [removePartMut, updateTask]);
+
+  // ── Loading / empty states ────────────────────────────────────────
+
+  if (isLoading || !book)
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="animate-spin size-5" />
+          <span className="text-sm">Loading...</span>
+        </div>
+      </div>
+    );
+
+  // ── Progress calculation from local state ─────────────────────────
+
   let total = 0,
     completed = 0;
   book.units.forEach((unit) => {
@@ -75,269 +418,92 @@ export default function BookProgressPage() {
   });
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Handler for toggling a task (including split tasks)
-  const handleToggleTask = async (task: Task) => {
-    setSavingTask(task.id);
-    if (task.parts.length > 0) {
-      // For split tasks, update all parts
-      const newCompleted = !task.parts.every((p) => optimisticPartState[p.id] ?? p.completed);
-      // Optimistically update all parts
-      setOptimisticPartState((prev) => {
-        const next = { ...prev };
-        task.parts.forEach((part) => {
-          next[part.id] = newCompleted;
-        });
-        return next;
-      });
-      await Promise.all(
-        task.parts.map((part) =>
-          togglePart.mutateAsync({ id: part.id, completed: newCompleted })
-        )
-      );
-      // Clear optimistic state for these parts
-      setOptimisticPartState((prev) => {
-        const next = { ...prev };
-        task.parts.forEach((part) => {
-          delete next[part.id];
-        });
-        return next;
-      });
-    } else {
-      const newCompleted = !(optimisticTaskState[task.id] ?? task.completed);
-      setOptimisticTaskState((prev) => ({ ...prev, [task.id]: newCompleted }));
-      await toggleTask.mutateAsync({ id: task.id, completed: newCompleted });
-      setOptimisticTaskState((prev) => {
-        const next = { ...prev };
-        delete next[task.id];
-        return next;
-      });
-    }
-    setSavingTask(null);
-  };
-
-  // Handler for toggling a part
-  const handleTogglePart = async (part: TaskPart) => {
-    setSavingPart(part.id);
-    const newCompleted = !(optimisticPartState[part.id] ?? part.completed);
-    setOptimisticPartState((prev) => ({ ...prev, [part.id]: newCompleted }));
-    await togglePart.mutateAsync({ id: part.id, completed: newCompleted });
-    setOptimisticPartState((prev) => {
-      const next = { ...prev };
-      delete next[part.id];
-      return next;
-    });
-    setSavingPart(null);
-  };
-
-  // Handler for add task
-  const handleAddTask = async (unitId: number) => {
-    setSavingUnit(unitId);
-    await addTask.mutateAsync({ unitId });
-    setSavingUnit(null);
-  };
-
-  // Handler for split task
-  const handleSplitTask = async (taskId: number) => {
-    setSplittingTask(taskId);
-    await splitTask.mutateAsync({ id: taskId });
-    setSplittingTask(null);
-  };
-
-  // Handler for undo split
-  const handleUndoSplit = async (taskId: number) => {
-    setUndoingSplitTask(taskId);
-    await undoSplit.mutateAsync({ id: taskId });
-    setUndoingSplitTask(null);
-  };
-
-  // Handler for remove task
-  const handleRemoveTask = async (taskId: number) => {
-    setRemovingTask(taskId);
-    await removeTask.mutateAsync({ id: taskId });
-    setRemovingTask(null);
-  };
-
-  // Handler for add part
-  const handleAddPart = async (taskId: number) => {
-    setAddingPartTask(taskId);
-    await addPart.mutateAsync({ taskId });
-    setAddingPartTask(null);
-  };
-
-  // Handler for remove part
-  const handleRemovePart = async (partId: number) => {
-    setRemovingPart(partId);
-    await removePart.mutateAsync({ id: partId });
-    setRemovingPart(null);
-  };
+  // ── Render ────────────────────────────────────────────────────────
 
   return (
-    <>
-      <main className="min-h-screen bg-slate-50 pb-16 flex flex-col">
-        <Navbar progress={percent} bookTitle={book.title} showLogout />
-        <div className="max-w-xl mx-auto pt-8">
-          <div className="w-full flex justify-center pt-8">
-            <div className="w-[800px]">
-              <Accordion type="multiple" className="mb-8">
-                {book.units.map((unit) => {
-                  // Calculate unit progress
-                  let unitTotal = 0, unitCompleted = 0;
-                  unit.tasks.forEach((task) => {
-                    if (task.parts.length > 0) {
-                      unitTotal += task.parts.length;
-                      unitCompleted += task.parts.filter((p) => optimisticPartState[p.id] ?? p.completed).length;
-                    } else {
-                      unitTotal += 1;
-                      if (optimisticTaskState[task.id] ?? task.completed) unitCompleted += 1;
-                    }
-                  });
-                  const unitDone = unitTotal > 0 && unitCompleted === unitTotal;
-                  return (
-                    <AccordionItem value={unit.id.toString()} key={unit.id}>
-                      <AccordionTrigger>
-                        <div className="flex items-center min-w-0 w-full gap-2">
-                          <span className="font-semibold min-w-[110px]">Unit {unit.number}:</span>
-                          <span className="truncate flex-1 flex items-center">
-                            {unit.title}
-                            {unitDone && (
-                              <span className="text-green-600 ml-2" title="All done!">
-                                <Check className="w-5 h-5 inline-block align-middle" />
-                              </span>
-                            )}
-                          </span>
-                          <span className="text-xs text-gray-500 ml-2">({unitCompleted}/{unitTotal})</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <ul className="space-y-2">
-                          {unit.tasks.map((task) => {
-                            // For split tasks, checked if all parts are checked (optimistically)
-                            const taskChecked = task.parts.length > 0
-                              ? task.parts.every((p) => optimisticPartState[p.id] ?? p.completed)
-                              : optimisticTaskState[task.id] ?? task.completed;
-                            return (
-                              <li key={task.id} className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id={`task-${task.id}`}
-                                    checked={taskChecked}
-                                    onCheckedChange={() => handleToggleTask(task)}
-                                    disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
-                                  />
-                                  <label htmlFor={`task-${task.id}`} className="cursor-pointer select-none flex items-center mx-1" onClick={() => handleToggleTask(task)}>
-                                    {task.number}
-                                  </label>
-                                  {task.parts.length > 0 && (
-                                    <span className="text-xs text-gray-500">(split)</span>
-                                  )}
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleSplitTask(task.id)}
-                                    disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
-                                  >
-                                    Split
-                                    {splittingTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                                  </Button>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="text-red-500"
-                                    title="Remove Task"
-                                    onClick={() => handleRemoveTask(task.id)}
-                                    disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
-                                  >
-                                    🗑️
-                                    {removingTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                                  </Button>
-                                  {task.parts.length > 0 && (
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      title="Undo Split"
-                                      onClick={() => handleUndoSplit(task.id)}
-                                      disabled={!!savingTask || !!savingPart || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id}
-                                    >
-                                      ⬅️
-                                      {undoingSplitTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                                    </Button>
-                                  )}
-                                  <span style={{ display: 'inline-block', width: 20, height: 20, marginLeft: 4 }}>
-                                    {(savingTask === task.id || splittingTask === task.id || undoingSplitTask === task.id || removingTask === task.id) ? (
-                                      <Loader2 className="animate-spin text-gray-400 w-4 h-4" />
-                                    ) : null}
-                                  </span>
-                                </div>
-                                {task.parts.length > 0 && (
-                                  <ul className="ml-8 flex flex-wrap gap-4">
-                                    {task.parts.map((part) => {
-                                      const partChecked = optimisticPartState[part.id] ?? part.completed;
-                                      return (
-                                        <li key={part.id} className="flex items-center gap-1">
-                                          <Checkbox
-                                            id={`part-${part.id}`}
-                                            checked={partChecked}
-                                            onCheckedChange={() => handleTogglePart(part)}
-                                            disabled={!!savingTask || !!savingPart || removingPart === part.id}
-                                          />
-                                          <label htmlFor={`part-${part.id}`} className="cursor-pointer select-none flex items-center mx-1" onClick={() => handleTogglePart(part)}>
-                                            {part.letter}
-                                          </label>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="text-red-500"
-                                            title="Remove Part"
-                                            onClick={() => handleRemovePart(part.id)}
-                                            disabled={!!savingTask || !!savingPart || removingPart === part.id}
-                                          >
-                                            🗑️
-                                            {removingPart === part.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                                          </Button>
-                                          <span style={{ display: 'inline-block', width: 20, height: 20, marginLeft: 4 }}>
-                                            {(savingPart === part.id || removingPart === part.id) ? (
-                                              <Loader2 className="animate-spin text-gray-400 w-4 h-4" />
-                                            ) : null}
-                                          </span>
-                                        </li>
-                                      );
-                                    })}
-                                    <li>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleAddPart(task.id)}
-                                        disabled={!!savingTask || !!savingPart || addingPartTask === task.id}
-                                      >
-                                        + Add Part
-                                        {addingPartTask === task.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                                      </Button>
-                                    </li>
-                                  </ul>
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        <div className="mt-4 flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleAddTask(unit.id)}
-                            disabled={!!savingTask || !!savingPart || savingUnit === unit.id}
-                          >
-                            + Add Task
-                            {savingUnit === unit.id && <Loader2 className="animate-spin ml-1 w-4 h-4" />}
-                          </Button>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar progress={percent} bookTitle={book.title} showLogout />
+      <main className="flex-1 w-full max-w-2xl mx-auto px-6 py-8">
+        <Accordion type="multiple" value={expandedValue} onValueChange={handleAccordionChange} className="space-y-1">
+          {book.units.map((unit) => {
+            let unitTotal = 0, unitCompleted = 0;
+            unit.tasks.forEach((task) => {
+              if (task.parts.length > 0) {
+                unitTotal += task.parts.length;
+                unitCompleted += task.parts.filter((p) => p.completed).length;
+              } else {
+                unitTotal += 1;
+                if (task.completed) unitCompleted += 1;
+              }
+            });
+            const unitDone = unitTotal > 0 && unitCompleted === unitTotal;
+            const unitPct = unitTotal > 0 ? Math.round((unitCompleted / unitTotal) * 100) : 0;
+            return (
+              <AccordionItem value={unit.id.toString()} key={unit.id} className="border-b-0 rounded-xl bg-card border-2 border-border/40 mb-3 overflow-hidden">
+                <AccordionTrigger className="px-4 hover:no-underline">
+                  <div className="flex items-center min-w-0 w-full gap-2">
+                    <span className="inline-flex items-baseline gap-2 min-w-0 flex-1">
+                      <span className="text-sm font-bold text-primary/70 shrink-0 tabular-nums">
+                        {unit.number}.
+                      </span>
+                      <span className="truncate text-foreground font-medium text-sm">
+                        {unit.title}
+                      </span>
+                    </span>
+                    {unitDone ? (
+                      <span className="flex items-center justify-center size-6 rounded-full bg-sage-light text-sage shrink-0" title="All done!">
+                        <Check className="size-3.5 stroke-[3]" />
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center h-6 text-xs font-medium text-muted-foreground bg-secondary px-2 rounded-full shrink-0">
+                        {unitPct}%
+                      </span>
+                    )}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4">
+                  <ul className="space-y-1.5">
+                    {unit.tasks.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        onToggleTask={handleToggleTask}
+                        onTogglePart={handleTogglePart}
+                        onSplit={handleSplit}
+                        onUndoSplit={handleUndoSplit}
+                        onRemoveTask={handleRemoveTask}
+                        onAddPart={handleAddPart}
+                        onRemovePart={handleRemovePart}
+                      />
+                    ))}
+                  </ul>
+                  <div className="mt-4 pt-3 border-t border-border/30">
+                    <AddTaskButton unitId={unit.id} onAdd={handleAddTask} />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
       </main>
-    </>
+    </div>
+  );
+}
+
+// ─── Add Task button (owns its own loading state) ───────────────────
+
+function AddTaskButton({ unitId, onAdd }: { unitId: number; onAdd: (unitId: number) => Promise<void> }) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={async () => { setAdding(true); await onAdd(unitId); setAdding(false); }}
+      disabled={adding}
+      className="text-xs"
+    >
+      {adding ? <Loader2 className="animate-spin size-3.5" /> : <Plus className="size-3.5" />}
+      Add Task
+    </Button>
   );
 }
