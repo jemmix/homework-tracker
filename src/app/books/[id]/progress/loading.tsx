@@ -14,7 +14,7 @@ function SkeletonUnit({ width }: { width: string }) {
 
 export default function ProgressLoading() {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col opacity-0" style={{ animation: 'skeleton-in 150ms ease-in 200ms forwards' }}>
       <Navbar showLogout />
       <main className="flex-1 w-full max-w-2xl mx-auto px-6 py-8">
         <div className="space-y-1">

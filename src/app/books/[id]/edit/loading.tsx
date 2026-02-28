@@ -2,7 +2,7 @@ import Navbar from "../../../_components/navbar";
 
 export default function EditLoading() {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col opacity-0" style={{ animation: 'skeleton-in 150ms ease-in 200ms forwards' }}>
       <Navbar />
       <div className="flex flex-1 items-center justify-center px-6 py-10">
         <div className="p-8 w-full max-w-lg mx-auto rounded-2xl border-2 border-border/60 bg-card shadow-sm">

@@ -21,7 +21,7 @@ function SkeletonBookCard() {
 
 export default function HomeLoading() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background opacity-0" style={{ animation: 'skeleton-in 150ms ease-in 200ms forwards' }}>
       <Navbar showLogout />
       <main className="max-w-2xl mx-auto px-6 py-10">
         <div className="mb-8">
