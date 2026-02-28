@@ -1,5 +1,3 @@
-import Navbar from "../../../_components/navbar";
-
 function SkeletonUnit({ width }: { width: string }) {
   return (
     <div className="rounded-xl bg-card border-2 border-border/40 mb-3 overflow-hidden">
@@ -14,17 +12,18 @@ function SkeletonUnit({ width }: { width: string }) {
 
 export default function ProgressLoading() {
   return (
-    <div className="min-h-screen bg-background flex flex-col opacity-0" style={{ animation: 'skeleton-in 150ms ease-in 200ms forwards' }}>
-      <Navbar showLogout />
-      <main className="flex-1 w-full max-w-2xl mx-auto px-6 py-8">
-        <div className="space-y-1">
-          <SkeletonUnit width="45%" />
-          <SkeletonUnit width="60%" />
-          <SkeletonUnit width="35%" />
-          <SkeletonUnit width="52%" />
-          <SkeletonUnit width="40%" />
-        </div>
-      </main>
-    </div>
+    <main className="flex-1 w-full max-w-2xl mx-auto px-6 py-8 opacity-0" style={{ animation: 'skeleton-in 150ms ease-in 200ms forwards' }}>
+      <div className="mb-6 flex flex-col items-center gap-1.5">
+        <div className="h-2 w-full rounded-full bg-border/30 animate-pulse" />
+        <div className="h-3 w-16 rounded bg-border/25 animate-pulse" />
+      </div>
+      <div className="space-y-1">
+        <SkeletonUnit width="45%" />
+        <SkeletonUnit width="60%" />
+        <SkeletonUnit width="35%" />
+        <SkeletonUnit width="52%" />
+        <SkeletonUnit width="40%" />
+      </div>
+    </main>
   );
 }

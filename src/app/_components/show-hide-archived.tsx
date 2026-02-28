@@ -2,7 +2,7 @@
 import { BookList } from "./book-list";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import type { Unit } from "../page";
+import type { Unit } from "../(home)/page";
 
 export function ShowHideArchived({ books }: { books: { id: number; title: string; archived?: boolean; units?: Unit[] }[] }) {
   const [open, setOpen] = useState(false);

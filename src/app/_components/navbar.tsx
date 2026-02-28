@@ -4,19 +4,19 @@ import { BookOpen } from "lucide-react";
 
 export default function Navbar({
   progress,
-  bookTitle,
+  breadcrumb,
   showLogout,
 }: {
   progress?: number;
-  bookTitle?: string;
+  breadcrumb?: React.ReactNode;
   showLogout?: boolean;
 }) {
   return (
     <nav className="w-full border-b-2 border-border/50 bg-card/80 backdrop-blur-sm py-4 px-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         <Link
           href="/"
-          className="flex items-center gap-2.5 group"
+          className="flex items-center gap-2.5 group shrink-0"
         >
           <span className="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
             <BookOpen className="size-4" />
@@ -25,14 +25,7 @@ export default function Navbar({
             Homework Tracker
           </span>
         </Link>
-        {bookTitle && (
-          <>
-            <span className="text-border text-lg">/</span>
-            <span className="text-sm font-medium text-muted-foreground truncate max-w-xs">
-              {bookTitle}
-            </span>
-          </>
-        )}
+        {breadcrumb}
       </div>
       {typeof progress === "number" && (
         <div className="w-full md:w-72 flex flex-col items-center gap-1.5">
@@ -42,22 +35,22 @@ export default function Navbar({
           </span>
         </div>
       )}
-      <div className="flex items-center justify-end">
-        {showLogout ? (
+      <div className="flex items-center justify-end h-9">
+        {showLogout === true ? (
           <Link
             href="/api/auth/signout"
             className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors px-3 py-1.5 rounded-lg hover:bg-primary/5"
           >
             Logout
           </Link>
-        ) : (
+        ) : showLogout === false ? (
           <Link
             href="/api/auth/signin"
-            className="text-sm font-medium text-primary hover:text-primary/80 transition-colors px-4 py-1.5 rounded-lg border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5"
+            className="text-sm font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-lg border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5"
           >
             Sign in
           </Link>
-        )}
+        ) : null}
       </div>
     </nav>
   );

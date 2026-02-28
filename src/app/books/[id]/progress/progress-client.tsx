@@ -9,7 +9,7 @@ import { Checkbox } from "../../../../components/ui/checkbox";
 import { Button } from "../../../../components/ui/button";
 import { useState, useCallback } from "react";
 import { Loader2, Check, Plus, Trash2, Scissors, Undo2 } from "lucide-react";
-import Navbar from "../../../_components/navbar";
+import { Progress } from "../../../../components/ui/progress";
 import { api } from "../../../../trpc/react";
 
 interface TaskPart {
@@ -391,9 +391,13 @@ export default function ProgressClient({ initialBook }: { initialBook: BookData 
   // ── Render ────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar progress={percent} bookTitle={book.title} showLogout />
       <main className="flex-1 w-full max-w-2xl mx-auto px-6 py-8">
+        <div className="mb-6 flex flex-col items-center gap-1.5">
+          <Progress value={percent} className="w-full" />
+          <span className="text-xs font-medium text-muted-foreground tracking-wide">
+            {percent}% complete
+          </span>
+        </div>
         <Accordion type="multiple" value={expandedValue} onValueChange={handleAccordionChange} className="space-y-1">
           {book.units.map((unit) => {
             let unitTotal = 0, unitCompleted = 0;
@@ -456,6 +460,5 @@ export default function ProgressClient({ initialBook }: { initialBook: BookData 
           })}
         </Accordion>
       </main>
-    </div>
   );
 }

@@ -1,5 +1,3 @@
-import Navbar from "./_components/navbar";
-
 function SkeletonBookCard() {
   return (
     <div className="bg-card rounded-xl border-2 border-border/50 px-4 py-4 pb-5 flex items-center justify-between relative">
@@ -21,19 +19,16 @@ function SkeletonBookCard() {
 
 export default function HomeLoading() {
   return (
-    <div className="min-h-screen bg-background opacity-0" style={{ animation: 'skeleton-in 150ms ease-in 200ms forwards' }}>
-      <Navbar showLogout />
-      <main className="max-w-2xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <div className="h-8 w-40 rounded bg-border/40 animate-pulse" />
-          <div className="h-4 w-64 rounded bg-border/25 animate-pulse mt-2" />
-        </div>
-        <div className="space-y-3 mb-6">
-          <SkeletonBookCard />
-          <SkeletonBookCard />
-          <SkeletonBookCard />
-        </div>
-      </main>
-    </div>
+    <main className="max-w-2xl mx-auto px-6 py-10 opacity-0" style={{ animation: 'skeleton-in 150ms ease-in 200ms forwards' }}>
+      <div className="mb-8">
+        <div className="h-8 w-40 rounded bg-border/40 animate-pulse" />
+        <div className="h-4 w-64 rounded bg-border/25 animate-pulse mt-2" />
+      </div>
+      <div className="space-y-3 mb-6">
+        <SkeletonBookCard />
+        <SkeletonBookCard />
+        <SkeletonBookCard />
+      </div>
+    </main>
   );
 }
