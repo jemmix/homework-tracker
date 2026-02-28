@@ -4,25 +4,39 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Card } from "../../components/ui/card";
 import type { ChangeEvent, FormEvent } from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../../trpc/react";
 import { Loader2, Trash2, Plus } from "lucide-react";
 
-interface BookFormProps {
-  bookId?: string;
-  onSave?: () => void;
-}
-
 type Unit = { number: number; title: string };
 type UnitWithId = { id: number; number: number; title: string };
 
-export default function BookForm({ bookId, onSave }: BookFormProps) {
-  const [title, setTitle] = useState("");
-  const [units, setUnits] = useState<Unit[]>([]);
+export interface BookFormInitialData {
+  id: number;
+  title: string;
+  archived?: boolean;
+  units: UnitWithId[];
+}
+
+interface BookFormProps {
+  initialData?: BookFormInitialData;
+  onSave?: () => void;
+}
+
+export default function BookForm({ initialData, onSave }: BookFormProps) {
+  const bookId = initialData ? String(initialData.id) : undefined;
+  const [title, setTitle] = useState(initialData?.title ?? "");
+  const [units, setUnits] = useState<Unit[]>(
+    initialData?.units.map((u) => ({ number: u.number, title: u.title })) ?? []
+  );
   const [unitTitle, setUnitTitle] = useState("");
-  const [unitNumber, setUnitNumber] = useState(1);
-  const [archived, setArchived] = useState(false);
+  const [unitNumber, setUnitNumber] = useState(
+    initialData?.units.length
+      ? Math.max(...initialData.units.map((u) => u.number)) + 1
+      : 1
+  );
+  const [archived, setArchived] = useState(initialData?.archived ?? false);
   const router = useRouter();
   const createBook = api.book.create.useMutation({
     onSuccess: () => {
@@ -36,28 +50,6 @@ export default function BookForm({ bookId, onSave }: BookFormProps) {
       router.push("/");
     },
   });
-  const getBook = api.book.get.useQuery(
-    { id: bookId! },
-    {
-      enabled: !!bookId,
-      refetchOnMount: true,
-      refetchOnWindowFocus: true,
-      staleTime: 0,
-    }
-  );
-
-  useEffect(() => {
-    if (getBook.data) {
-      setTitle(getBook.data.title);
-      setUnits(getBook.data.units as Unit[]);
-      setUnitNumber(
-        getBook.data.units.length > 0
-          ? Math.max(...(getBook.data.units as Unit[]).map((u) => u.number)) + 1
-          : 1
-      );
-      setArchived(!!getBook.data.archived);
-    }
-  }, [getBook.data]);
 
   function addUnit() {
     setUnits([...units, { number: unitNumber, title: unitTitle }]);
@@ -75,33 +67,15 @@ export default function BookForm({ bookId, onSave }: BookFormProps) {
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (bookId) {
-      const unitsWithIds: UnitWithId[] = (getBook.data?.units ?? []).map((u: UnitWithId) => ({ id: u.id, number: u.number, title: u.title }));
+    if (bookId && initialData) {
       const mergedUnits = units.map((unit, idx) => ({
         ...unit,
-        id: unitsWithIds[idx]?.id,
+        id: initialData.units[idx]?.id,
       }));
       updateBook.mutate({ id: bookId, title, units: mergedUnits, archived });
     } else {
       createBook.mutate({ title, units, archived });
     }
-  }
-
-  if (bookId && getBook.isLoading) {
-    return (
-      <Card className="p-8 w-full max-w-lg mx-auto text-center">
-        <span className="inline-flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="animate-spin w-5 h-5" /> Loading...
-        </span>
-      </Card>
-    );
-  }
-  if (bookId && !getBook.data) {
-    return (
-      <Card className="p-8 w-full max-w-lg mx-auto text-center">
-        <span className="text-destructive font-medium">Book not found or you do not have access.</span>
-      </Card>
-    );
   }
 
   return (
