@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -34,8 +34,9 @@ function DragHandle() {
 
 function SortableBookItem({ book, children }: { book: Book; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: book.id });
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => { setHydrated(true); }, []);
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  const subscribe = () => () => {};
+  const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
   return (
     <li
       ref={setNodeRef}
@@ -59,13 +60,19 @@ function SortableBookItem({ book, children }: { book: Book; children: React.Reac
 }
 
 export function BookList({ books }: { books: Book[] }) {
-  const [items, setItems] = useState(books.map(b => b.id));
+  const bookIds = books.map(b => b.id);
+  const [localOrder, setLocalOrder] = useState<number[] | null>(null);
+  const items = localOrder ?? bookIds;
+
+  // Reset local order when props change (e.g. after revalidation)
+  const [prevBookIds, setPrevBookIds] = useState(bookIds);
+  if (JSON.stringify(prevBookIds) !== JSON.stringify(bookIds)) {
+    setPrevBookIds(bookIds);
+    setLocalOrder(null);
+  }
+
   const reorderBooks = api.book.reorder.useMutation();
   const sensors = useSensors(useSensor(PointerSensor));
-
-  useEffect(() => {
-    setItems(books.map(b => b.id));
-  }, [books]);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -73,7 +80,7 @@ export function BookList({ books }: { books: Book[] }) {
     const oldIndex = items.indexOf(active.id as number);
     const newIndex = items.indexOf(over.id as number);
     const newItems = arrayMove(items, oldIndex, newIndex);
-    setItems(newItems);
+    setLocalOrder(newItems);
     reorderBooks.mutate({ ids: newItems });
   }
 

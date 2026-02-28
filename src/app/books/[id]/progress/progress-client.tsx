@@ -48,8 +48,8 @@ function PartItem({
   onRemove,
 }: {
   part: TaskPart;
-  onToggle: (partId: number, newCompleted: boolean) => void;
-  onRemove: (partId: number) => void;
+  onToggle: (partId: number, newCompleted: boolean) => Promise<void>;
+  onRemove: (partId: number) => Promise<void>;
 }) {
   const [toggling, setToggling] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -108,13 +108,13 @@ function TaskRow({
   onRemovePart,
 }: {
   task: Task;
-  onToggleTask: (taskId: number, newCompleted: boolean) => void;
-  onTogglePart: (partId: number, newCompleted: boolean) => void;
+  onToggleTask: (taskId: number, newCompleted: boolean) => Promise<void>;
+  onTogglePart: (partId: number, newCompleted: boolean) => Promise<void>;
   onSplit: (taskId: number) => Promise<void>;
   onUndoSplit: (taskId: number) => Promise<void>;
   onRemoveTask: (taskId: number) => Promise<void>;
   onAddPart: (taskId: number) => Promise<void>;
-  onRemovePart: (partId: number) => void;
+  onRemovePart: (partId: number) => Promise<void>;
 }) {
   const [toggling, setToggling] = useState(false);
   const [splitting, setSplitting] = useState(false);
