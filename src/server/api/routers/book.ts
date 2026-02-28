@@ -5,60 +5,37 @@ import { eq } from "drizzle-orm";
 
 export const bookRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
-    // Fetch all books for the user, ordered by position (then createdAt as fallback)
-    const booksList = await ctx.db.query.books.findMany({
+    return ctx.db.query.books.findMany({
       where: (book, { eq }) => eq(book.userId, ctx.session.user.id),
       orderBy: (book, { asc, desc }) => [asc(book.position), desc(book.createdAt)],
+      with: {
+        units: {
+          orderBy: (unit, { asc }) => [asc(unit.number)],
+          with: {
+            tasks: {
+              orderBy: (task, { asc }) => [asc(task.number)],
+              with: {
+                parts: {
+                  orderBy: (part, { asc }) => [asc(part.letter)],
+                },
+              },
+            },
+          },
+        },
+      },
     });
-    // Fetch all units for these books
-    const bookIds = booksList.map((b) => b.id);
-    const allUnits = bookIds.length
-      ? await ctx.db.query.units.findMany({
-          where: (unit, { inArray }) => inArray(unit.bookId, bookIds),
-          orderBy: (unit, { asc }) => [asc(unit.bookId), asc(unit.number)],
-        })
-      : [];
-    // Fetch all tasks for these units
-    const unitIds = allUnits.map((u) => u.id);
-    const allTasks = unitIds.length
-      ? await ctx.db.query.tasks.findMany({
-          where: (task, { inArray }) => inArray(task.unitId, unitIds),
-          orderBy: (task, { asc }) => [asc(task.unitId), asc(task.number)],
-        })
-      : [];
-    // Fetch all parts for these tasks
-    const taskIds = allTasks.map((t) => t.id);
-    const allParts = taskIds.length
-      ? await ctx.db.query.taskParts.findMany({
-          where: (part, { inArray }) => inArray(part.taskId, taskIds),
-          orderBy: (part, { asc }) => [asc(part.taskId), asc(part.letter)],
-        })
-      : [];
-    // Attach units, tasks, and parts to each book
-    const booksWithProgress = booksList.map((book) => {
-      const units = allUnits.filter((u) => u.bookId === book.id).map((unit) => {
-        const tasks = allTasks.filter((t) => t.unitId === unit.id).map((task) => ({
-          ...task,
-          parts: allParts.filter((p) => p.taskId === task.id),
-        }));
-        return { ...unit, tasks };
-      });
-      return { ...book, units };
-    });
-    return booksWithProgress;
   }),
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const book = await ctx.db.query.books.findFirst({
+      return ctx.db.query.books.findFirst({
         where: (book, { eq, and }) => and(eq(book.id, Number(input.id)), eq(book.userId, ctx.session.user.id)),
-      });
-      if (!book) return null;
-      const bookUnits = await ctx.db.query.units.findMany({
-        where: (unit, { eq }) => eq(unit.bookId, book.id),
-        orderBy: (unit, { asc }) => [asc(unit.number)],
-      });
-      return { ...book, units: bookUnits };
+        with: {
+          units: {
+            orderBy: (unit, { asc }) => [asc(unit.number)],
+          },
+        },
+      }) ?? null;
     }),
   create: protectedProcedure
     .input(
@@ -91,40 +68,24 @@ export const bookRouter = createTRPCRouter({
   progress: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const book = await ctx.db.query.books.findFirst({
+      return ctx.db.query.books.findFirst({
         where: (book, { eq, and }) => and(eq(book.id, Number(input.id)), eq(book.userId, ctx.session.user.id)),
-      });
-      if (!book) return null;
-      const bookUnits = await ctx.db.query.units.findMany({
-        where: (unit, { eq }) => eq(unit.bookId, book.id),
-        orderBy: (unit, { asc }) => [asc(unit.number)],
-      });
-      const unitIds = bookUnits.map((u) => u.id);
-      const allTasks = unitIds.length
-        ? await ctx.db.query.tasks.findMany({
-            where: (task, { inArray }) => inArray(task.unitId, unitIds),
-            orderBy: (task, { asc }) => [asc(task.unitId), asc(task.number)],
-          })
-        : [];
-      const taskIds = allTasks.map((t) => t.id);
-      const allParts = taskIds.length
-        ? await ctx.db.query.taskParts.findMany({
-            where: (part, { inArray }) => inArray(part.taskId, taskIds),
-            orderBy: (part, { asc }) => [asc(part.taskId), asc(part.letter)],
-          })
-        : [];
-      return {
-        ...book,
-        units: bookUnits.map((unit) => ({
-          ...unit,
-          tasks: allTasks
-            .filter((t) => t.unitId === unit.id)
-            .map((task) => ({
-              ...task,
-              parts: allParts.filter((p) => p.taskId === task.id),
-            })),
-        })),
-      };
+        with: {
+          units: {
+            orderBy: (unit, { asc }) => [asc(unit.number)],
+            with: {
+              tasks: {
+                orderBy: (task, { asc }) => [asc(task.number)],
+                with: {
+                  parts: {
+                    orderBy: (part, { asc }) => [asc(part.letter)],
+                  },
+                },
+              },
+            },
+          },
+        },
+      }) ?? null;
     }),
   addTask: protectedProcedure
     .input(z.object({ unitId: z.number() }))
